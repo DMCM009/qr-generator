@@ -5,7 +5,7 @@ import urllib.request
 import urllib.parse
 
 # CONSTANTES (parámetros de inicialización)
-ANCHO, ALTO = 700, 600
+ANCHO, ALTO = 700, 650
 TITULO = 'Generador de QR y Acortador de Enlaces'
 
 class MainWindow(QWidget):
@@ -16,6 +16,31 @@ class MainWindow(QWidget):
         self.config_window()
         self.event_handler()
         self.show()
+
+    def show_custom_msg(self, icon, title, text):
+        """Muestra una ventana emergente con estilo personalizado (texto blanco, fondo oscuro y botón blanco)."""
+        msg_box = QMessageBox(icon, title, text, QMessageBox.Ok, self)
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: #1e1e2e;
+            }
+            QLabel {
+                color: #ffffff;
+                font-size: 13px;
+            }
+            QPushButton {
+                background-color: #ffffff;
+                color: #000000;
+                border-radius: 5px;
+                padding: 6px 15px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #dddddd;
+            }
+        """)
+        msg_box.exec_()
 
     def set_window(self):
         # Usamos un diseño vertical (QVBoxLayout) para estructurar la app limpiamente
@@ -86,7 +111,10 @@ class MainWindow(QWidget):
         self.button_layout.addWidget(self.btn2)
         self.main_layout.addLayout(self.button_layout)
 
-        # Campo de lectura para mostrar el enlace recortado (fácil de seleccionar y copiar)
+        # Layout horizontal para el campo de resultado y su botón de copiar
+        self.result_layout = QHBoxLayout()
+        self.result_layout.setSpacing(10)
+
         self.result_input = QLineEdit()
         self.result_input.setReadOnly(True)
         self.result_input.setPlaceholderText("El link recortado aparecerá aquí...")
@@ -100,7 +128,25 @@ class MainWindow(QWidget):
                 font-size: 14px;
             }
         ''')
-        self.main_layout.addWidget(self.result_input)
+        self.result_layout.addWidget(self.result_input)
+
+        # Botón para copiar enlace
+        self.copy_btn = QPushButton('📋 Copiar')
+        self.copy_btn.setStyleSheet('''
+            QPushButton {
+                color: #ffffff;
+                background-color: #444454;
+                border-radius: 10px;
+                padding: 14px 16px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #666676;
+            }
+        ''')
+        self.result_layout.addWidget(self.copy_btn)
+        self.main_layout.addLayout(self.result_layout)
 
         # Zona centralizada para mostrar el QR resultante o los estados de carga
         self.texto = QLabel()
@@ -122,11 +168,12 @@ class MainWindow(QWidget):
     def event_handler(self):
         self.btn.clicked.connect(self.set_text)
         self.btn2.clicked.connect(self.set_QR)
+        self.copy_btn.clicked.connect(self.copy_link)
 
     def set_text(self):
         url = self.input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Atención", "Por favor, ingresa un enlace válido primero.")
+            self.show_custom_msg(QMessageBox.Warning, "Atención", "Por favor, ingresa un enlace válido primero.")
             return
 
         self.result_input.setText("Procesando y recortando enlace...")
@@ -145,12 +192,12 @@ class MainWindow(QWidget):
                 self.texto.setStyleSheet("background-color: #2b2b36; border-radius: 10px; color: #00ffff; font-size: 16px; font-weight: bold;")
         except Exception as e:
             self.result_input.setText("")
-            QMessageBox.critical(self, "Error", f"No se pudo recortar el enlace.\nDetalle: {e}")
+            self.show_custom_msg(QMessageBox.Critical, "Error", f"No se pudo recortar el enlace.\nDetalle: {e}")
 
     def set_QR(self):
         url = self.input.text().strip()
         if not url:
-            QMessageBox.warning(self, "Atención", "Por favor, ingresa un enlace para generar el QR.")
+            self.show_custom_msg(QMessageBox.Warning, "Atención", "Por favor, ingresa un enlace para generar el QR.")
             return
 
         self.texto.setText("Generando código QR...")
@@ -172,7 +219,18 @@ class MainWindow(QWidget):
         except Exception as e:
             self.texto.setText("Error al generar el QR")
             self.texto.setStyleSheet("background-color: #2b2b36; border-radius: 10px; color: #ff1900;")
-            QMessageBox.critical(self, "Error", f"No se pudo obtener el código QR.\nDetalle: {e}")
+            self.show_custom_msg(QMessageBox.Critical, "Error", f"No se pudo obtener el código QR.\nDetalle: {e}")
+
+    def copy_link(self):
+        """Copia el enlace recortado al portapapeles."""
+        link_text = self.result_input.text().strip()
+        # Verificamos que sea un enlace válido antes de copiar
+        if link_text.startswith("http"):
+            clipboard = QApplication.clipboard()
+            clipboard.setText(link_text)
+            self.show_custom_msg(QMessageBox.Information, "Copiado", "¡Enlace copiado al portapapeles con éxito!")
+        else:
+            self.show_custom_msg(QMessageBox.Warning, "Atención", "No hay ningún enlace válido para copiar.")
 
 # FUNCIÓN PARA EJECUTAR LA APP
 def run():
